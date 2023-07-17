@@ -3230,6 +3230,164 @@ func TestHistogramInWALAndMmapChunk(t *testing.T) {
 	testQuery()
 }
 
+// Expected:
+//
+//	t=240, zc=196
+//	t=241, zc=180
+//	t=242, zc=93
+//
+// Actual:
+//
+//	t=240, zc=196
+//	t=241, zc=196
+//	t=242, zc=0
+//
+// When/where does the difference happen?
+//
+// When:
+// When we write to the appender, it's as expected, but when we read from the block querier after recovering head, it
+// returns actual.
+//
+// Where:
+// It could be:
+//
+//	[x] Snapshot - only from ts=233 to ts=240
+//	[x] WAL - WAL showing zc=180, zc=93 for ts=241, ts=242
+//	[o] Mmapped head chunks - FOUND IT
+func TestCheckSnapshot(t *testing.T) {
+	dir := "/Users/leizor/tmp/science/20230714"
+
+	sr, err := wlog.NewSegmentsReader(path.Join(dir, "chunk_snapshot.000013.0000032768"))
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, sr.Close())
+	}()
+
+	var dec record.Decoder
+
+	r := wlog.NewReader(sr)
+	for r.Next() {
+		rec := r.Record()
+		switch rec[0] {
+		case chunkSnapshotRecordTypeSeries:
+			csr, err := decodeSeriesFromChunkSnapshot(&dec, rec)
+			require.NoError(t, err)
+
+			if csr.lset[0].Name != "floathist" || csr.lset[0].Value != "bat1" {
+				continue
+			}
+
+			chkItr := csr.mc.chunk.Iterator(nil)
+
+			for valType := chkItr.Next(); valType != chunkenc.ValNone; valType = chkItr.Next() {
+				if valType != chunkenc.ValFloatHistogram {
+					continue
+				}
+
+				// TODO: We're just checking float histograms for now, but remember that AtFloatHistogram auto-converts
+				//       histograms into float histograms so we may need to check there too.
+				ts, fh := chkItr.AtFloatHistogram()
+				if ts == 241 || ts == 242 {
+					fmt.Printf("ts: %d, zc: %f\n", ts, fh.ZeroCount)
+				} else {
+					fmt.Printf("ts: %d\n", ts)
+				}
+			}
+		}
+	}
+}
+
+// See TestCheckSnapshot.
+// See head.go:684
+func TestCheckWAL(t *testing.T) {
+	dir := "/Users/leizor/tmp/science/20230714"
+
+	w, err := wlog.NewSize(nil, nil, path.Join(dir, "wal"), 32768, wlog.CompressionNone)
+	require.NoError(t, err)
+	defer func() {
+		_ = w.Close()
+	}()
+
+	sr, err := wlog.NewSegmentsReader(path.Join(dir, "wal"))
+	require.NoError(t, err)
+
+	var dec record.Decoder
+
+	r := wlog.NewReader(sr)
+	for r.Next() {
+		rec := r.Record()
+		typ := dec.Type(rec)
+
+		if typ == record.Series {
+			series, err := dec.Series(rec, nil)
+			require.NoError(t, err)
+
+			for _, s := range series {
+				fmt.Println(s.Labels.String())
+			}
+		}
+
+		if typ != record.FloatHistogramSamples {
+			// TODO: We're just checking float histograms for now, but remember that AtFloatHistogram auto-converts
+			//       histograms into float histograms so we may need to check there too.
+			continue
+		}
+
+		hists, err := dec.FloatHistogramSamples(rec, nil)
+		require.NoError(t, err)
+
+		for _, h := range hists {
+			if h.T == 241 || h.T == 242 {
+				fmt.Printf("ts: %d, zc: %f\n", h.T, h.FH.ZeroCount)
+			}
+		}
+	}
+}
+
+// See TestCheckSnapshot.
+func TestMmappedHeadChunks(t *testing.T) {
+	dir := "/Users/leizor/tmp/science/20230714"
+
+	opts := DefaultHeadOptions()
+	opts.ChunkRange = 120 * 4
+	opts.ChunkDirRoot = dir
+	opts.EnableExemplarStorage = true
+	opts.MaxExemplars.Store(config.DefaultExemplarsConfig.MaxExemplars)
+	opts.EnableNativeHistograms.Store(true)
+
+	h, err := NewHead(nil, nil, nil, nil, opts, nil)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, h.Close())
+	}()
+
+	err = h.chunkDiskMapper.IterateAllChunks(func(seriesRef chunks.HeadSeriesRef, chunkRef chunks.ChunkDiskMapperRef, _, _ int64, _ uint16, encoding chunkenc.Encoding, _ bool) error {
+		if encoding != chunkenc.EncFloatHistogram {
+			return nil
+		}
+
+		chk, err := h.chunkDiskMapper.Chunk(chunkRef)
+		require.NoError(t, err)
+
+		chkItr := chk.Iterator(nil)
+		for valType := chkItr.Next(); valType != chunkenc.ValNone; valType = chkItr.Next() {
+			if valType != chunkenc.ValFloatHistogram {
+				continue
+			}
+
+			ts, fh := chkItr.AtFloatHistogram()
+			if ts == 241 || ts == 242 {
+				fmt.Printf("ts: %d, zc: %f\n", ts, fh.ZeroCount)
+				//} else {
+				//	fmt.Printf("ts: %d\n", ts)
+			}
+		}
+
+		return nil
+	})
+	require.NoError(t, err)
+}
+
 func TestChunkSnapshot(t *testing.T) {
 	head, _ := newTestHead(t, 120*4, wlog.CompressionNone, false)
 	defer func() {
@@ -3281,7 +3439,24 @@ func TestChunkSnapshot(t *testing.T) {
 		q, err := NewBlockQuerier(head, math.MinInt64, math.MaxInt64)
 		require.NoError(t, err)
 		series := query(t, q, labels.MustNewMatcher(labels.MatchRegexp, "floathist", "bat.*"))
+		//require.Equal(t, expFloatHist, series)
+
+		// FIXME
+		require.Equal(t, expFloatHist["{floathist=\"bat1\"}"][0].FH(), series["{floathist=\"bat1\"}"][0].FH())
+		require.Equal(t, expFloatHist["{floathist=\"bat1\"}"][0], series["{floathist=\"bat1\"}"][0])
+
+		//for i := 0; i < len(expFloatHist["{floathist=\"bat1\"}"]); i++ {
+		//	res := assert.Equal(t, expFloatHist["{floathist=\"bat1\"}"][i], series["{floathist=\"bat1\"}"][i])
+		//	fmt.Printf("%d / %d: %t\n", i, len(expFloatHist["{floathist=\"bat1\"}"]), res)
+		//}
+		require.Equal(t, expFloatHist["{floathist=\"bat1\"}"], series["{floathist=\"bat1\"}"])
 		require.Equal(t, expFloatHist, series)
+
+		// It looks like require.Equal was comparing pointer refs of the float histogram instead of the float histograms
+		// themselves. We cast the tsdbutil.Sample to the underlying *sample to avoid this problem.
+		//actual := *(*map[string][]*sample)(unsafe.Pointer(&series))
+		//expected := *(*map[string][]*sample)(unsafe.Pointer(&expFloatHist))
+		//require.Equal(t, expected, actual)
 	}
 	checkTombstones := func() {
 		tr, err := head.Tombstones()

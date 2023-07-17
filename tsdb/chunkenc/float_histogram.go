@@ -43,6 +43,20 @@ func NewFloatHistogramChunk() *FloatHistogramChunk {
 	return &FloatHistogramChunk{b: bstream{stream: b, count: 0}}
 }
 
+func NewPrepopulatedFloatHistogramChunk(b []byte) *FloatHistogramChunk {
+	chk := &FloatHistogramChunk{b: bstream{count: 0, stream: b}}
+	it, ok := chk.Iterator(nil).(*floatHistogramIterator)
+	if !ok {
+		panic("unexpected iterator type") // This should never happen.
+	}
+
+	for valType := it.Next(); valType != ValNone; valType = it.Next() {
+	}
+	chk.b.count = it.br.valid % 8
+
+	return chk
+}
+
 // xorValue holds all the necessary information to encode
 // and decode XOR encoded float64 values.
 type xorValue struct {

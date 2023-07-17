@@ -1051,6 +1051,21 @@ func (a *headAppender) Commit() (err error) {
 		series.pendingCommit = false
 		series.Unlock()
 
+		// FIXME
+		//if series.lset[0].Name == "floathist" && series.lset[0].Value == "bat1" {
+		//	chkItr := series.headChunk.chunk.Iterator(nil)
+		//	for valType := chkItr.Next(); valType != chunkenc.ValNone; valType = chkItr.Next() {
+		//		if valType != chunkenc.ValFloatHistogram {
+		//			continue
+		//		}
+		//
+		//		ts, fh2 := chkItr.AtFloatHistogram()
+		//		if ts == 241 || ts == 242 || ts == 243 {
+		//			fmt.Printf("ts: %d, zc: %f\n", ts, fh2.ZeroCount)
+		//		}
+		//	}
+		//}
+
 		if ok {
 			if s.T < inOrderMint {
 				inOrderMint = s.T
@@ -1331,6 +1346,21 @@ func (s *memSeries) appendFloatHistogram(t int64, fh *histogram.FloatHistogram, 
 
 	s.app.AppendFloatHistogram(t, fh)
 
+	// FIXME
+	//if s.lset[0].Name == "floathist" && s.lset[0].Value == "bat1" {
+	//	chkItr := s.headChunk.chunk.Iterator(nil)
+	//	for valType := chkItr.Next(); valType != chunkenc.ValNone; valType = chkItr.Next() {
+	//		if valType != chunkenc.ValFloatHistogram {
+	//			continue
+	//		}
+	//
+	//		ts, fh2 := chkItr.AtFloatHistogram()
+	//		if ts == 241 || ts == 242 || ts == 243 {
+	//			fmt.Printf("ts: %d, zc: %f\n", ts, fh2.ZeroCount)
+	//		}
+	//	}
+	//}
+
 	c.maxTime = t
 
 	s.lastFloatHistogramValue = fh
@@ -1556,6 +1586,22 @@ func (s *memSeries) mmapCurrentHeadChunk(chunkDiskMapper *chunks.ChunkDiskMapper
 		// There is no head chunk, so nothing to m-map here.
 		return
 	}
+
+	// FIXME
+	// At this point, we're already showing zc=196 when ts=241 :(
+	//if s.lset[0].Name == "floathist" && s.lset[0].Value == "bat1" {
+	//	chkItr := s.headChunk.chunk.Iterator(nil)
+	//	for valType := chkItr.Next(); valType != chunkenc.ValNone; valType = chkItr.Next() {
+	//		if valType != chunkenc.ValFloatHistogram {
+	//			continue
+	//		}
+	//
+	//		ts, fh := chkItr.AtFloatHistogram()
+	//		if ts == 241 || ts == 242 {
+	//			fmt.Printf("ts: %d, zc: %f\n", ts, fh.ZeroCount)
+	//		}
+	//	}
+	//}
 
 	chunkRef := chunkDiskMapper.WriteChunk(s.ref, s.headChunk.minTime, s.headChunk.maxTime, s.headChunk.chunk, false, handleChunkWriteError)
 	s.mmappedChunks = append(s.mmappedChunks, &mmappedChunk{

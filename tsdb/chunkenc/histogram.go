@@ -44,6 +44,20 @@ func NewHistogramChunk() *HistogramChunk {
 	return &HistogramChunk{b: bstream{stream: b, count: 0}}
 }
 
+func NewPrepopulatedHistogramChunk(b []byte) *HistogramChunk {
+	chk := &HistogramChunk{b: bstream{stream: b, count: 0}}
+	it, ok := chk.Iterator(nil).(*histogramIterator)
+	if !ok {
+		panic("unexpected iterator type") // This should never happen.
+	}
+
+	for valType := it.Next(); valType != ValNone; valType = it.Next() {
+	}
+	chk.b.count = it.br.valid % 8
+
+	return chk
+}
+
 // Encoding returns the encoding type.
 func (c *HistogramChunk) Encoding() Encoding {
 	return EncHistogram
