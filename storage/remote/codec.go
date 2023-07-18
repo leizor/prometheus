@@ -547,7 +547,7 @@ func (c *concreteSeriesIterator) Err() error {
 	return nil
 }
 
-// chunkedSeriesSet implements storage.SeriesSet
+// chunkedSeriesSet implements storage.SeriesSet.
 type chunkedSeriesSet struct {
 	chunkedReader *ChunkedReader
 	respBody      io.ReadCloser
@@ -608,7 +608,7 @@ func (s *chunkedSeriesSet) Warnings() annotations.Annotations {
 	return nil
 }
 
-// chunkedSeries implements storage.Series
+// chunkedSeries implements storage.Series.
 type chunkedSeries struct {
 	labels     []prompb.Label
 	chunks     []prompb.Chunk
@@ -628,7 +628,7 @@ func (s *chunkedSeries) Iterator(it chunkenc.Iterator) chunkenc.Iterator {
 	return newChunkedSeriesIterator(s.chunks, s.mint, s.maxt)
 }
 
-// chunkedSeriesIterator implements chunkenc.Iterator
+// chunkedSeriesIterator implements chunkenc.Iterator.
 type chunkedSeriesIterator struct {
 	chunks     []prompb.Chunk
 	idx        int

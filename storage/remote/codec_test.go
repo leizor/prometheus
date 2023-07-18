@@ -1072,7 +1072,7 @@ func TestChunkedSeriesSet(t *testing.T) {
 	})
 }
 
-// mockFlusher implements http.Flusher
+// mockFlusher implements http.Flusher.
 type mockFlusher struct{}
 
 func (f *mockFlusher) Flush() {}
