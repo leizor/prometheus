@@ -1007,7 +1007,7 @@ func TestChunkedSeriesSet(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		ss := NewChunkedSeriesSet(r, io.NopCloser(buf), 0, 14000, func() {})
+		ss := NewChunkedSeriesSet(r, io.NopCloser(buf), 0, 14000, func(error) {})
 		require.Nil(t, ss.Err())
 		require.Nil(t, ss.Warnings())
 
@@ -1062,7 +1062,7 @@ func TestChunkedSeriesSet(t *testing.T) {
 			require.NoError(t, err)
 		}
 
-		ss := NewChunkedSeriesSet(r, io.NopCloser(buf), 0, 14000, func() {})
+		ss := NewChunkedSeriesSet(r, io.NopCloser(buf), 0, 14000, func(error) {})
 		require.Nil(t, ss.Err())
 		require.Nil(t, ss.Warnings())
 

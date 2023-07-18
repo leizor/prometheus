@@ -15,7 +15,6 @@ package remote
 
 import (
 	"compress/gzip"
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -552,13 +551,13 @@ type chunkedSeriesSet struct {
 	chunkedReader *ChunkedReader
 	respBody      io.ReadCloser
 	mint, maxt    int64
-	cancel        context.CancelFunc
+	cancel        func(error)
 
 	current storage.Series
 	err     error
 }
 
-func NewChunkedSeriesSet(chunkedReader *ChunkedReader, respBody io.ReadCloser, mint, maxt int64, cancel context.CancelFunc) storage.SeriesSet {
+func NewChunkedSeriesSet(chunkedReader *ChunkedReader, respBody io.ReadCloser, mint, maxt int64, cancel func(error)) storage.SeriesSet {
 	return &chunkedSeriesSet{
 		chunkedReader: chunkedReader,
 		respBody:      respBody,
@@ -581,7 +580,7 @@ func (s *chunkedSeriesSet) Next() bool {
 		}
 
 		_ = s.respBody.Close()
-		s.cancel()
+		s.cancel(err)
 
 		return false
 	}
