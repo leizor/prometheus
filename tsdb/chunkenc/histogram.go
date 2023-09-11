@@ -120,6 +120,13 @@ func (c *HistogramChunk) Appender() (Appender, error) {
 		return nil, err
 	}
 
+	// Set the count of the bstream so we write the next sample starting at the correct place.
+	if it.br.valid%8 == 0 && (it.br.valid != 0 || it.br.streamOffset < len(it.br.stream)) {
+		c.b.count = 8
+	} else {
+		c.b.count = it.br.valid % 8
+	}
+
 	a := &HistogramAppender{
 		b: &c.b,
 

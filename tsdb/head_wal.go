@@ -1411,7 +1411,11 @@ func (h *Head) loadChunkSnapshot() (int, int, map[chunks.HeadSeriesRef]*memSerie
 				if csr.mc == nil {
 					continue
 				}
-				series.nextAt = csr.mc.maxTime // This will create a new chunk on append.
+
+				chunkMax := rangeForTimestamp(csr.mc.maxTime, h.chunkRange.Load())
+				ratioToFull := float64(csr.mc.chunk.NumSamples() / h.opts.SamplesPerChunk)
+				series.nextAt = computeChunkEndTime(csr.mc.minTime, csr.mc.maxTime, chunkMax, ratioToFull)
+
 				series.headChunks = csr.mc
 				series.lastValue = csr.lastValue
 				series.lastHistogramValue = csr.lastHistogramValue
