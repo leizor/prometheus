@@ -853,13 +853,13 @@ func TestChunkedSeriesIterator(t *testing.T) {
 
 		it := newChunkedSeriesIterator(chks, 2000, 12000)
 
-		require.Nil(t, it.err)
+		require.NoError(t, it.err)
 		require.NotNil(t, it.cur)
 
 		// Initial next; advance to first valid sample of first chunk.
 		res := it.Next()
 		require.Equal(t, chunkenc.ValFloat, res)
-		require.Nil(t, it.Err())
+		require.NoError(t, it.Err())
 
 		ts, v := it.At()
 		require.Equal(t, int64(2000), ts)
@@ -868,7 +868,7 @@ func TestChunkedSeriesIterator(t *testing.T) {
 		// Next to the second sample of the first chunk.
 		res = it.Next()
 		require.Equal(t, chunkenc.ValFloat, res)
-		require.Nil(t, it.Err())
+		require.NoError(t, it.Err())
 
 		ts, v = it.At()
 		require.Equal(t, int64(3000), ts)
@@ -893,7 +893,7 @@ func TestChunkedSeriesIterator(t *testing.T) {
 		// Next to the first sample of the second chunk.
 		res = it.Next()
 		require.Equal(t, chunkenc.ValFloat, res)
-		require.Nil(t, it.Err())
+		require.NoError(t, it.Err())
 
 		ts, v = it.At()
 		require.Equal(t, int64(5000), ts)
@@ -902,7 +902,7 @@ func TestChunkedSeriesIterator(t *testing.T) {
 		// Seek to the second sample of the third chunk.
 		res = it.Seek(10999)
 		require.Equal(t, chunkenc.ValFloat, res)
-		require.Nil(t, it.Err())
+		require.NoError(t, it.Err())
 
 		ts, v = it.At()
 		require.Equal(t, int64(11000), ts)
@@ -911,12 +911,12 @@ func TestChunkedSeriesIterator(t *testing.T) {
 		// Attempt to seek to something past the last sample (should return false and exhaust the iterator).
 		res = it.Seek(99999)
 		require.Equal(t, chunkenc.ValNone, res)
-		require.Nil(t, it.Err())
+		require.NoError(t, it.Err())
 
 		// Attempt to next past the last sample (should return false as the iterator is exhausted).
 		res = it.Next()
 		require.Equal(t, chunkenc.ValNone, res)
-		require.Nil(t, it.Err())
+		require.NoError(t, it.Err())
 	})
 
 	t.Run("invalid chunk encoding error", func(t *testing.T) {
@@ -972,7 +972,7 @@ func TestChunkedSeries(t *testing.T) {
 		res := it.Next() // Behavior is undefined w/o the initial call to Next.
 
 		require.Equal(t, chunkenc.ValFloat, res)
-		require.Nil(t, it.Err())
+		require.NoError(t, it.Err())
 
 		ts, v := it.At()
 		require.Equal(t, int64(0), ts)
@@ -1008,12 +1008,12 @@ func TestChunkedSeriesSet(t *testing.T) {
 		}
 
 		ss := NewChunkedSeriesSet(r, io.NopCloser(buf), 0, 14000, func(error) {})
-		require.Nil(t, ss.Err())
+		require.NoError(t, ss.Err())
 		require.Nil(t, ss.Warnings())
 
 		res := ss.Next()
 		require.True(t, res)
-		require.Nil(t, ss.Err())
+		require.NoError(t, ss.Err())
 
 		s := ss.At()
 		require.Equal(t, 1, s.Labels().Len())
@@ -1031,7 +1031,7 @@ func TestChunkedSeriesSet(t *testing.T) {
 			numResponses++
 		}
 		require.Equal(t, numTestChunks, numResponses)
-		require.Nil(t, ss.Err())
+		require.NoError(t, ss.Err())
 	})
 
 	t.Run("chunked reader error", func(t *testing.T) {
@@ -1063,7 +1063,7 @@ func TestChunkedSeriesSet(t *testing.T) {
 		}
 
 		ss := NewChunkedSeriesSet(r, io.NopCloser(buf), 0, 14000, func(error) {})
-		require.Nil(t, ss.Err())
+		require.NoError(t, ss.Err())
 		require.Nil(t, ss.Warnings())
 
 		res := ss.Next()
