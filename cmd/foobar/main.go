@@ -170,14 +170,19 @@ func checkHistogram(client remote.ReadClient, histogramBase string, hourStart ti
 		}
 	}
 
-	if len(res[0]) != len(res[1]) {
-		return -1, fmt.Errorf("result sets different lengths, %v != %v", len(res[0]), len(res[1]))
-	}
-
-	for ts, v0 := range res[0] {
-		v1 := res[1][ts]
-		if v0 != v1 {
-			return ts, nil
+	if len(res[0]) >= len(res[1]) {
+		for ts, v0 := range res[0] {
+			v1 := res[1][ts]
+			if v0 != v1 {
+				return ts, nil
+			}
+		}
+	} else {
+		for ts, v0 := range res[1] {
+			v1 := res[0][ts]
+			if v0 != v1 {
+				return ts, nil
+			}
 		}
 	}
 
